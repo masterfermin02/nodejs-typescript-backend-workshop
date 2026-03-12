@@ -1,0 +1,112 @@
+# Workshop Exercises
+
+All exercises build on the `starter` branch. The completed solution lives on the `final` branch.
+
+---
+
+## Exercise 1 — Health Check Endpoint
+**Goal:** Add a `GET /health` route that returns server status and uptime.
+
+**Tasks:**
+1. Add a `/health` route to `app.ts`
+2. Return `{ status: "ok", uptime: process.uptime(), timestamp: ... }`
+3. Verify with `curl http://localhost:3000/health`
+
+---
+
+## Exercise 2 — User Model & Repository
+**Goal:** Define the `User` interface and implement the in-memory repository.
+
+**Tasks:**
+1. Create `src/models/User.ts` with `User`, `CreateUserDTO`, `UpdateUserDTO`
+2. Implement `userRepository` with `findAll`, `findById`, `findByEmail`, `create`, `update`, `delete`
+3. Use `uuid` for ID generation
+
+---
+
+## Exercise 3 — Service Layer
+**Goal:** Add business logic on top of the repository.
+
+**Tasks:**
+1. Implement `userService` in `src/services/userService.ts`
+2. Add `NotFoundError` and `ConflictError` custom error classes
+3. Enforce the uniqueness rule on email in `createUser` and `updateUser`
+
+---
+
+## Exercise 4 — Zod Validation Schemas
+**Goal:** Validate incoming request data before it reaches the controller.
+
+**Tasks:**
+1. Create `src/validators/userValidator.ts`
+2. Write schemas for create, update, and ID param validation
+3. Export inferred TypeScript types
+
+---
+
+## Exercise 5 — Validate Middleware
+**Goal:** Build a reusable middleware that applies a Zod schema to any request target.
+
+**Tasks:**
+1. Implement `validate(schema, target)` in `src/middleware/validate.ts`
+2. Return a `400` with structured field errors on failure
+3. Attach parsed data back to `req[target]`
+
+---
+
+## Exercise 6 — Controller & Routes
+**Goal:** Wire routes to controller methods.
+
+**Tasks:**
+1. Implement all five controller methods (`getAll`, `getById`, `create`, `update`, `remove`)
+2. Register routes with appropriate middleware in `src/routes/userRoutes.ts`
+3. Mount the router at `/api/users` in `app.ts`
+
+---
+
+## Exercise 7 — Error Handler Middleware
+**Goal:** Centralize error handling.
+
+**Tasks:**
+1. Implement `errorHandler` in `src/middleware/errorHandler.ts`
+2. Map `NotFoundError` → 404, `ConflictError` → 409, everything else → 500
+3. Ensure `app.ts` registers it last
+
+---
+
+## Exercise 8 — Unit Tests
+**Goal:** Test the service layer without HTTP.
+
+**Tasks:**
+1. Write tests in `tests/unit/userService.test.ts`
+2. Cover happy paths and error paths for `createUser`, `getUserById`, `updateUser`, `deleteUser`
+3. Use `userRepository.clear()` in `beforeEach`
+
+---
+
+## Exercise 9 — Integration Tests
+**Goal:** Test the API end-to-end with Supertest.
+
+**Tasks:**
+1. Write tests in `tests/integration/userRoutes.test.ts`
+2. Cover all five endpoints including validation and error cases
+3. Run `npm test` and confirm all tests pass
+
+---
+
+## Exercise 10 — Graceful Shutdown
+**Goal:** Handle `SIGTERM` and `SIGINT` cleanly.
+
+**Tasks:**
+1. Listen for signals in `src/server.ts`
+2. Call `server.close()` before `process.exit(0)`
+3. Log a shutdown message
+
+---
+
+## Bonus — What's Next?
+- Replace the in-memory store with PostgreSQL + Prisma or Drizzle
+- Add JWT authentication middleware
+- Containerize with Docker and `docker-compose`
+- Add structured logging with `pino`
+- Deploy to Railway, Render, or Fly.io
