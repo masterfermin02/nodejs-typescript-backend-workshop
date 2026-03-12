@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Node.js + TypeScript Backend Workshop</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3e;
+      --accent: #7c6af7;
+      --accent2: #4ade80;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --code-bg: #12151f;
+      --red: #f87171;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ── Deck container ── */
+    #deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 80px;
+      animation: fadeIn 0.3s ease;
+    }
+    .slide.active { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Slide number badge ── */
+    .slide-number {
+      position: absolute;
+      bottom: 24px;
+      right: 32px;
+      font-size: 13px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Progress bar ── */
+    #progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: var(--accent);
+      transition: width 0.3s ease;
+      z-index: 10;
+    }
+
+    /* ── Navigation controls ── */
+    #nav {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    #nav button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #nav button:hover { background: var(--border); border-color: var(--accent); }
+    #nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ── Typography ── */
+    h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.5px;
+    }
+
+    h2 {
+      font-size: 2.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 36px;
+      width: 100%;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    p {
+      font-size: 1.15rem;
+      line-height: 1.7;
+      color: var(--muted);
+      max-width: 700px;
+    }
+
+    /* ── Lists ── */
+    ul, ol {
+      list-style: none;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    ul li, ol li {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: var(--text);
+      padding: 6px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    ul li::before { content: '—'; color: var(--accent); flex-shrink: 0; }
+
+    .check li::before { content: '✔'; color: var(--accent2); }
+    .numbered { counter-reset: item; }
+    .numbered li { counter-increment: item; }
+    .numbered li::before {
+      content: counter(item) '.';
+      color: var(--accent);
+      font-weight: 700;
+      min-width: 24px;
+      flex-shrink: 0;
+    }
+
+    /* ── Code blocks ── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px 28px;
+      font-size: 1rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      color: var(--text);
+    }
+
+    .kw  { color: #c792ea; }
+    .ty  { color: #82aaff; }
+    .fn  { color: #82aaff; }
+    .str { color: #c3e88d; }
+    .cm  { color: #546e7a; font-style: italic; }
+
+    /* ── Layout helpers ── */
+    .cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px 28px;
+    }
+
+    .tag {
+      display: inline-block;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 0.9rem;
+      font-family: monospace;
+      color: var(--accent);
+      margin: 4px;
+    }
+
+    .endpoint {
+      font-family: monospace;
+      font-size: 1rem;
+      color: var(--text);
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .endpoint:last-child { border-bottom: none; }
+
+    .method {
+      font-weight: 700;
+      min-width: 56px;
+    }
+    .method.post { color: #4ade80; }
+    .method.get  { color: #60a5fa; }
+    .method.del  { color: #f87171; }
+
+    .diagram {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px 32px;
+      font-family: monospace;
+      font-size: 1rem;
+      line-height: 2;
+      color: var(--muted);
+      text-align: center;
+    }
+    .diagram .arrow { color: var(--accent); }
+    .diagram .node  { color: var(--text); font-weight: 600; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 1rem;
+      margin: 6px;
+    }
+
+    /* ── Title slide ── */
+    .slide-title {
+      background: radial-gradient(ellipse at 60% 40%, #1e1a3a 0%, var(--bg) 70%);
+    }
+    .slide-title h1 { color: var(--text); }
+    .slide-title .sub {
+      font-size: 1.2rem;
+      color: var(--muted);
+      margin-top: 16px;
+    }
+    .slide-title .pill {
+      margin-top: 32px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill span {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: 0.9rem;
+      color: var(--accent);
+    }
+
+    /* ── Section divider slide ── */
+    .slide-divider {
+      background: radial-gradient(ellipse at 50% 50%, #1a1d40 0%, var(--bg) 65%);
+      text-align: center;
+    }
+    .slide-divider .section-num {
+      font-size: 5rem;
+      font-weight: 800;
+      color: var(--border);
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+    .slide-divider h2 {
+      color: var(--text);
+      text-align: center;
+      margin-bottom: 0;
+    }
+
+    /* ── End slide ── */
+    .slide-end {
+      background: radial-gradient(ellipse at 50% 50%, #0f2a1a 0%, var(--bg) 65%);
+      text-align: center;
+    }
+    .slide-end h1 { color: var(--accent2); }
+  </style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<div id="deck">
+
+  <!-- ─────────────────────────── SLIDE 1 ─ Title ─────────────────────────── -->
+  <div class="slide slide-title active" data-slide="1">
+    <h1>Node.js + TypeScript<br>Backend Workshop</h1>
+    <p class="sub">Build production-ready REST APIs from scratch</p>
+    <div class="pill">
+      <span>Node.js</span>
+      <span>TypeScript</span>
+      <span>Express</span>
+      <span>Zod</span>
+      <span>Jest</span>
+    </div>
+    <div class="slide-number">1 / 20</div>
+  </div>
+
+  <!-- ──────────────────────── SLIDE 2 ─ Prerequisites ───────────────────── -->
+  <div class="slide" data-slide="2">
+    <h2>Prerequisites</h2>
+    <div class="cols">
+      <div class="card">
+        <h3>You should know</h3>
+        <ul>
+          <li>JavaScript basics</li>
+          <li>What an HTTP request is</li>
+          <li>Basic terminal usage</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>You need installed</h3>
+        <ul>
+          <li>Node.js 18+</li>
+          <li>npm 9+</li>
+          <li>Git</li>
+          <li>VS Code (recommended)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="slide-number">2 / 20</div>
+  </div>
+
+  <!-- ──────────────────────── SLIDE 3 ─ Workshop Goals ───────────────────── -->
+  <div class="slide" data-slide="3">
+    <h2>Workshop Goals</h2>
+    <div class="cols">
+      <div>
+        <p style="margin-bottom:20px;color:var(--muted);">By the end of this workshop you will:</p>
+        <ul class="check">
+          <li>Build a Node.js API with TypeScript</li>
+          <li>Understand backend architecture layers</li>
+          <li>Implement validation and error handling</li>
+          <li>Create clean and maintainable code</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Final API</h3>
+        <div class="endpoint">
+          <span class="method post">POST</span><span>/users</span>
+        </div>
+        <div class="endpoint">
+          <span class="method get">GET</span><span>/users</span>
+        </div>
+        <div class="endpoint">
+          <span class="method get">GET</span><span>/users/:id</span>
+        </div>
+        <div class="endpoint">
+          <span class="method del">DELETE</span><span>/users/:id</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">3 / 20</div>
+  </div>
+
+  <!-- ─────────────────────── SLIDE 4 ─ Workshop Structure ────────────────── -->
+  <div class="slide" data-slide="4">
+    <h2>Workshop Structure</h2>
+    <ul class="numbered" style="max-width:520px;">
+      <li>Node.js fundamentals</li>
+      <li>TypeScript for backend</li>
+      <li>Backend architecture</li>
+      <li>Building the API</li>
+      <li>Validation &amp; error handling</li>
+      <li>Hands-on exercises</li>
+    </ul>
+    <div class="slide-number">4 / 20</div>
+  </div>
+
+  <!-- ──────────────────────── SLIDE 5 ─ What is Node.js? ─────────────────── -->
+  <div class="slide" data-slide="5">
+    <h2>What is Node.js?</h2>
+    <div class="cols">
+      <div>
+        <p>Node.js is a JavaScript runtime built on Chrome's <strong style="color:var(--accent)">V8 engine</strong>.</p>
+        <p style="margin-top:14px;">It allows JavaScript to run <strong style="color:var(--text)">outside the browser</strong>.</p>
+      </div>
+      <div>
+        <h3>Typical uses</h3>
+        <ul>
+          <li>APIs</li>
+          <li>Microservices</li>
+          <li>Real-time systems</li>
+          <li>CLI tools</li>
+        </ul>
+      </div>
+    </div>
+    <div class="slide-number">5 / 20</div>
+  </div>
+
+  <!-- ────────────────────── SLIDE 6 ─ Why Node.js for Backends? ──────────── -->
+  <div class="slide" data-slide="6">
+    <h2>Why Node.js for Backends?</h2>
+    <div class="cols">
+      <div>
+        <h3>Advantages</h3>
+        <ul class="check">
+          <li>Huge ecosystem (npm)</li>
+          <li>Fast development</li>
+          <li>Non-blocking I/O</li>
+          <li>Same language frontend + backend</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Used by</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+          <span class="badge">Netflix</span>
+          <span class="badge">PayPal</span>
+          <span class="badge">LinkedIn</span>
+          <span class="badge">Uber</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">6 / 20</div>
+  </div>
+
+  <!-- ──────────────────── SLIDE 7 ─ Event-Driven Architecture ────────────── -->
+  <div class="slide" data-slide="7">
+    <h2>Event-Driven Architecture</h2>
+    <p style="margin-bottom:32px;">Node uses a <strong style="color:var(--accent)">non-blocking event loop</strong>.</p>
+    <div class="cols">
+      <div class="diagram">
+        <div style="color:var(--muted);font-size:0.85rem;margin-bottom:8px;">Traditional server</div>
+        <div class="node">Request</div>
+        <div class="arrow">↓</div>
+        <div style="color:var(--red)">Blocking operation</div>
+        <div class="arrow">↓</div>
+        <div class="node">Response</div>
+      </div>
+      <div class="diagram">
+        <div style="color:var(--muted);font-size:0.85rem;margin-bottom:8px;">Node server</div>
+        <div class="node">Request</div>
+        <div class="arrow">↓</div>
+        <div style="color:var(--accent2)">Async operation</div>
+        <div class="arrow">↓</div>
+        <div class="node">Event loop handles next request</div>
+      </div>
+    </div>
+    <p style="margin-top:24px;text-align:center;">Result: better scalability for I/O workloads.</p>
+    <div class="slide-number">7 / 20</div>
+  </div>
+
+  <!-- ──────────────────────── SLIDE 8 ─ Why TypeScript? ──────────────────── -->
+  <div class="slide" data-slide="8">
+    <h2>Why TypeScript?</h2>
+    <div class="cols">
+      <div>
+        <h3>JavaScript problems</h3>
+        <ul>
+          <li>No type safety</li>
+          <li>Runtime errors</li>
+          <li>Hard refactoring</li>
+          <li>Weak contracts between modules</li>
+        </ul>
+      </div>
+      <div>
+        <h3>TypeScript solves this</h3>
+        <ul class="check">
+          <li>Static typing</li>
+          <li>Better tooling</li>
+          <li>Safer refactoring</li>
+        </ul>
+      </div>
+    </div>
+    <div class="slide-number">8 / 20</div>
+  </div>
+
+  <!-- ─────────────────── SLIDE 9 ─ Problem Without Types ─────────────────── -->
+  <div class="slide" data-slide="9">
+    <h2>Problem Without Types</h2>
+    <pre><code><span class="kw">function</span> <span class="fn">createUser</span>(user) {
+  <span class="kw">return</span> user.name.<span class="fn">toUpperCase</span>()
+}</code></pre>
+    <div class="card" style="margin-top:28px;max-width:700px;width:100%;border-color:var(--red);">
+      <p style="color:var(--red);">
+        If <code style="color:var(--text)">user.name</code> is missing &rarr; <strong>runtime crash</strong>.<br>
+        No warning at write time. No warning at compile time.
+      </p>
+    </div>
+    <div class="slide-number">9 / 20</div>
+  </div>
+
+  <!-- ──────────────────── SLIDE 10 ─ Same Code with TypeScript ───────────── -->
+  <div class="slide" data-slide="10">
+    <h2>Same Code with TypeScript</h2>
+    <pre><code><span class="kw">type</span> <span class="ty">User</span> = {
+  name: <span class="ty">string</span>
+}
+
+<span class="kw">function</span> <span class="fn">createUser</span>(user: <span class="ty">User</span>) {
+  <span class="kw">return</span> user.name.<span class="fn">toUpperCase</span>()
+}</code></pre>
+    <div class="card" style="margin-top:28px;max-width:700px;width:100%;border-color:var(--accent2);">
+      <p style="color:var(--accent2);">
+        Errors are caught <strong>before running the code</strong>.<br>
+        Your editor underlines the mistake the moment you write it.
+      </p>
+    </div>
+    <div class="slide-number">10 / 20</div>
+  </div>
+
+  <!-- ──────────────────── SLIDE 11 ─ Backend Architecture ────────────────── -->
+  <div class="slide" data-slide="11">
+    <h2>Backend Architecture</h2>
+    <div class="cols">
+      <div>
+        <p>Large APIs need <strong style="color:var(--text)">structure</strong>.</p>
+        <p style="margin-top:14px;">A good backend separates concerns:</p>
+        <ul style="margin-top:20px;">
+          <li>Controllers</li>
+          <li>Services</li>
+          <li>Repositories</li>
+          <li>Models</li>
+          <li>Middleware</li>
+        </ul>
+      </div>
+      <div>
+        <p>This makes code easier to:</p>
+        <ul class="check" style="margin-top:20px;">
+          <li>Test</li>
+          <li>Maintain</li>
+          <li>Scale</li>
+        </ul>
+      </div>
+    </div>
+    <div class="slide-number">11 / 20</div>
+  </div>
+
+  <!-- ──────────────────── SLIDE 12 ─ Architecture Layers ─────────────────── -->
+  <div class="slide" data-slide="12">
+    <h2>Architecture Layers</h2>
+    <div class="cols">
+      <div class="card">
+        <h3>Controller</h3>
+        <p>Handles HTTP requests.</p>
+      </div>
+      <div class="card">
+        <h3>Service</h3>
+        <p>Contains business logic.</p>
+      </div>
+      <div class="card">
+        <h3>Repository</h3>
+        <p>Handles data storage.</p>
+      </div>
+      <div class="card">
+        <h3>Model</h3>
+        <p>Defines data structure.</p>
+      </div>
+    </div>
+    <div class="slide-number">12 / 20</div>
+  </div>
+
+  <!-- ──────────────────────── SLIDE 13 ─ Example Flow ────────────────────── -->
+  <div class="slide" data-slide="13">
+    <h2>Example Flow</h2>
+    <div class="diagram" style="max-width:380px;">
+      <div class="node">HTTP Request</div>
+      <div class="arrow">↓</div>
+      <div class="node">Controller</div>
+      <div class="arrow">↓</div>
+      <div class="node">Service</div>
+      <div class="arrow">↓</div>
+      <div class="node">Repository</div>
+      <div class="arrow">↓</div>
+      <div class="node">Database</div>
+    </div>
+    <p style="margin-top:28px;">Each layer has <strong style="color:var(--accent)">one responsibility</strong>.</p>
+    <div class="slide-number">13 / 20</div>
+  </div>
+
+  <!-- ─────────────────────── SLIDE 14 ─ Project Structure ────────────────── -->
+  <div class="slide" data-slide="14">
+    <h2>Project Structure</h2>
+    <div class="cols" style="align-items:start;">
+      <pre style="font-size:0.9rem;"><code>src/
+  <span class="ty">controllers/</span>
+  <span class="ty">services/</span>
+  <span class="ty">repositories/</span>
+  <span class="ty">routes/</span>
+  <span class="ty">models/</span>
+  <span class="ty">middleware/</span>
+  <span class="ty">validators/</span>
+  <span class="fn">app.ts</span>
+  <span class="fn">server.ts</span></code></pre>
+      <div>
+        <p>This is a common structure in production APIs.</p>
+        <ul class="check" style="margin-top:24px;">
+          <li>Easy to navigate</li>
+          <li>Mirrors the layer model</li>
+          <li>Scales as the team grows</li>
+        </ul>
+      </div>
+    </div>
+    <div class="slide-number">14 / 20</div>
+  </div>
+
+  <!-- ───────────────────────── SLIDE 15 ─ Our API Today ──────────────────── -->
+  <div class="slide" data-slide="15">
+    <h2>Our API Today</h2>
+    <div class="cols">
+      <div>
+        <p style="margin-bottom:20px;">We will build a <strong style="color:var(--text)">User API</strong>.</p>
+        <div class="card">
+          <div class="endpoint">
+            <span class="method post">POST</span><span>/users</span>
+          </div>
+          <div class="endpoint">
+            <span class="method get">GET</span><span>/users</span>
+          </div>
+          <div class="endpoint">
+            <span class="method get">GET</span><span>/users/:id</span>
+          </div>
+          <div class="endpoint">
+            <span class="method del">DELETE</span><span>/users/:id</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p>Later you can extend it with:</p>
+        <ul style="margin-top:16px;">
+          <li>Update user</li>
+          <li>Authentication</li>
+          <li>Database</li>
+        </ul>
+      </div>
+    </div>
+    <div class="slide-number">15 / 20</div>
+  </div>
+
+  <!-- ──────────────────── SLIDE 16 ─ What is Validation? ─────────────────── -->
+  <div class="slide" data-slide="16">
+    <h2>What is Validation?</h2>
+    <div class="cols">
+      <div>
+        <p>Validation ensures that data entering your API is <strong style="color:var(--text)">correct, complete, and safe</strong> before it reaches your business logic.</p>
+        <ul style="margin-top:24px;">
+          <li>Check required fields</li>
+          <li>Enforce data types</li>
+          <li>Validate formats (email, UUID…)</li>
+          <li>Apply length / range rules</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:var(--red);">
+        <h3 style="color:var(--red);">Without validation</h3>
+        <ul style="margin-top:8px;">
+          <li>Crashes from missing fields</li>
+          <li>Corrupt data in your DB</li>
+          <li>Security vulnerabilities</li>
+        </ul>
+      </div>
+    </div>
+    <div class="slide-number">16 / 20</div>
+  </div>
+
+  <!-- ──────────────────── SLIDE 17 ─ Zod Schema Example ──────────────────── -->
+  <div class="slide" data-slide="17">
+    <h2>Validation with Zod</h2>
+    <pre><code><span class="kw">import</span> { z } <span class="kw">from</span> <span class="str">'zod'</span>
+
+<span class="kw">const</span> createUserSchema = z.object({
+  name:  z.string().<span class="fn">min</span>(<span class="str">2</span>, <span class="str">'Name must be at least 2 characters'</span>),
+  email: z.string().<span class="fn">email</span>(<span class="str">'Invalid email address'</span>),
+})
+
+<span class="cm">// Derive TypeScript type — no duplication</span>
+<span class="kw">type</span> <span class="ty">CreateUserInput</span> = z.infer&lt;<span class="kw">typeof</span> createUserSchema&gt;</code></pre>
+    <div class="card" style="margin-top:24px;max-width:700px;width:100%;border-color:var(--accent2);">
+      <p style="color:var(--accent2);">
+        Schema and TypeScript type are <strong>always in sync</strong> — change one, the other updates automatically.
+      </p>
+    </div>
+    <div class="slide-number">17 / 20</div>
+  </div>
+
+  <!-- ───────────────────── SLIDE 18 ─ Validate Middleware ────────────────── -->
+  <div class="slide" data-slide="18">
+    <h2>Validate Middleware</h2>
+    <pre><code><span class="kw">function</span> <span class="fn">validate</span>(schema: <span class="ty">ZodSchema</span>, target = <span class="str">'body'</span>) {
+  <span class="kw">return</span> (req, res, next) =&gt; {
+    <span class="kw">const</span> result = schema.<span class="fn">safeParse</span>(req[target])
+
+    <span class="kw">if</span> (!result.success) {
+      <span class="kw">const</span> errors = result.error.errors.<span class="fn">map</span>(e =&gt; ({
+        field:   e.path.<span class="fn">join</span>(<span class="str">'.'</span>),
+        message: e.message,
+      }))
+      <span class="kw">return</span> res.<span class="fn">status</span>(<span class="str">400</span>).<span class="fn">json</span>({ status: <span class="str">'error'</span>, errors })
+    }
+
+    req[target] = result.data
+    <span class="fn">next</span>()
+  }
+}</code></pre>
+    <p style="margin-top:20px;">Used on any route: <code style="color:var(--accent)">validate(createUserSchema)</code></p>
+    <div class="slide-number">18 / 20</div>
+  </div>
+
+  <!-- ──────────────────── SLIDE 19 ─ Custom Error Classes ────────────────── -->
+  <div class="slide" data-slide="19">
+    <h2>Custom Error Classes</h2>
+    <div class="cols">
+      <pre style="font-size:0.9rem;"><code><span class="kw">class</span> <span class="ty">NotFoundError</span> <span class="kw">extends</span> <span class="ty">Error</span> {
+  <span class="fn">constructor</span>(msg: <span class="ty">string</span>) {
+    <span class="kw">super</span>(msg)
+    <span class="kw">this</span>.name = <span class="str">'NotFoundError'</span>
+  }
+}
+
+<span class="kw">class</span> <span class="ty">ConflictError</span> <span class="kw">extends</span> <span class="ty">Error</span> {
+  <span class="fn">constructor</span>(msg: <span class="ty">string</span>) {
+    <span class="kw">super</span>(msg)
+    <span class="kw">this</span>.name = <span class="str">'ConflictError'</span>
+  }
+}</code></pre>
+      <div>
+        <p>Throwing a typed error in the service layer:</p>
+        <pre style="margin-top:16px;font-size:0.9rem;"><code><span class="kw">if</span> (!user)
+  <span class="kw">throw new</span> <span class="ty">NotFoundError</span>(
+    <span class="str">`User </span>${id}<span class="str"> not found`</span>
+  )</code></pre>
+        <p style="margin-top:16px;">The controller just calls <code style="color:var(--accent)">next(err)</code> — the error handler does the rest.</p>
+      </div>
+    </div>
+    <div class="slide-number">19 / 20</div>
+  </div>
+
+  <!-- ─────────────────── SLIDE 20 ─ Error Handler Middleware ─────────────── -->
+  <div class="slide" data-slide="20">
+    <h2>Error Handler Middleware</h2>
+    <pre><code><span class="kw">function</span> <span class="fn">errorHandler</span>(err, _req, res, _next) {
+  <span class="kw">if</span> (err <span class="kw">instanceof</span> <span class="ty">NotFoundError</span>)
+    <span class="kw">return</span> res.<span class="fn">status</span>(<span class="str">404</span>).<span class="fn">json</span>({ status: <span class="str">'error'</span>, message: err.message })
+
+  <span class="kw">if</span> (err <span class="kw">instanceof</span> <span class="ty">ConflictError</span>)
+    <span class="kw">return</span> res.<span class="fn">status</span>(<span class="str">409</span>).<span class="fn">json</span>({ status: <span class="str">'error'</span>, message: err.message })
+
+  res.<span class="fn">status</span>(<span class="str">500</span>).<span class="fn">json</span>({ status: <span class="str">'error'</span>, message: <span class="str">'Internal server error'</span> })
+}
+
+<span class="cm">// Must be registered LAST in app.ts</span>
+app.<span class="fn">use</span>(errorHandler)</code></pre>
+    <div class="cols" style="margin-top:20px;max-width:700px;">
+      <div class="card"><p><strong style="color:var(--accent2)">404</strong> — not found</p></div>
+      <div class="card"><p><strong style="color:var(--accent)">409</strong> — conflict (duplicate)</p></div>
+      <div class="card"><p><strong style="color:var(--red)">500</strong> — unexpected error</p></div>
+    </div>
+    <div class="slide-number">20 / 20</div>
+  </div>
+
+</div><!-- #deck -->
+
+<!-- ── Navigation ── -->
+<div id="nav">
+  <button id="btn-prev" disabled>&larr; Prev</button>
+  <button id="btn-next">Next &rarr;</button>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total  = slides.length;
+  let current  = 0;
+
+  const progress = document.getElementById('progress');
+  const btnPrev  = document.getElementById('btn-prev');
+  const btnNext  = document.getElementById('btn-next');
+
+  function goTo(index) {
+    if (index < 0 || index >= total) return;
+    slides[current].classList.remove('active');
+    current = index;
+    slides[current].classList.add('active');
+
+    progress.style.width = ((current + 1) / total * 100) + '%';
+    btnPrev.disabled = current === 0;
+    btnNext.disabled = current === total - 1;
+  }
+
+  btnPrev.addEventListener('click', () => goTo(current - 1));
+  btnNext.addEventListener('click', () => goTo(current + 1));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault();
+      goTo(current + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      goTo(current - 1);
+    } else if (e.key === 'Home') {
+      goTo(0);
+    } else if (e.key === 'End') {
+      goTo(total - 1);
+    }
+  });
+
+  // Touch / swipe support
+  let touchStartX = 0;
+  document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend',   (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+  });
+
+  goTo(0);
+</script>
+
+</body>
+</html>

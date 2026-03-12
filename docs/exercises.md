@@ -104,6 +104,58 @@ All exercises build on the `starter` branch. The completed solution lives on the
 
 ---
 
+## Exercise 11 — Pagination for GET /users
+
+**Goal:** Add pagination support to the `GET /api/users` endpoint so large lists can be fetched in pages.
+
+**Context:**
+Right now `GET /api/users` returns every user at once. As the dataset grows this becomes slow and expensive. A paginated response lets the client control how many records it receives and which page it is on.
+
+**Expected query parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer ≥ 1 | `1` | Page number to return |
+| `limit` | integer 1–100 | `10` | Number of users per page |
+
+**Expected response shape:**
+
+```json
+{
+  "status": "success",
+  "data": [ ...users... ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 42,
+    "totalPages": 5
+  }
+}
+```
+
+**Tasks:**
+
+1. Create a Zod schema in `src/validators/userValidator.ts` that validates `page` and `limit` as positive integers with the defaults above. Use `z.coerce.number()` since query params arrive as strings.
+2. Add a `paginate(items, page, limit)` helper inside `userRepository.ts` that slices the full list and returns `{ data, total }`.
+3. Add a `getAllUsers(page, limit)` overload (or update the existing one) in `userService.ts` to accept pagination arguments and return both the user slice and the total count.
+4. Update `userController.ts` — `getAll` should read `page` and `limit` from `req.query` and include the `meta` object in the response.
+5. Apply the new query validation schema to the `GET /` route in `userRoutes.ts` using `validate(paginationSchema, 'query')`.
+
+**Hints:**
+- `Array.slice((page - 1) * limit, page * limit)` gives you the right window.
+- `totalPages` is `Math.ceil(total / limit)`.
+- Test edge cases: `page` beyond the last page should return an empty `data` array, not an error.
+
+**Verify manually:**
+```bash
+# Seed a few users first, then:
+curl "http://localhost:3000/api/users?page=1&limit=2"
+curl "http://localhost:3000/api/users?page=2&limit=2"
+curl "http://localhost:3000/api/users?limit=abc"   # should return 400
+```
+
+---
+
 ## Bonus — What's Next?
 - Replace the in-memory store with PostgreSQL + Prisma or Drizzle
 - Add JWT authentication middleware
