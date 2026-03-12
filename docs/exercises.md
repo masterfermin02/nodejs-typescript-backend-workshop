@@ -156,6 +156,54 @@ curl "http://localhost:3000/api/users?limit=abc"   # should return 400
 
 ---
 
+## Exercise 12 — Unit Tests for the Repository and Validators
+
+**Goal:** Write unit tests that cover the `userRepository` and the Zod validation schemas directly, without going through HTTP.
+
+**Context:**
+Exercise 8 tested the service layer in isolation. But two other pieces also have logic worth verifying on their own:
+
+- `userRepository` — the in-memory store has real behaviour: ID generation, `findByEmail` lookups, `update` merging, `delete` returning a boolean.
+- `userValidator` — Zod schemas have rules (minimum length, email format, UUID format) that should be confirmed without booting Express.
+
+Testing these layers directly gives faster feedback and pinpoints bugs more precisely than integration tests.
+
+**What to test in `userRepository`:**
+
+- `create` stores the user and returns it with a valid UUID `id`, `createdAt`, and `updatedAt`
+- `findAll` returns all stored users
+- `findById` returns the correct user or `undefined` for an unknown id
+- `findByEmail` finds a user by email or returns `undefined`
+- `update` merges only the provided fields and advances `updatedAt`
+- `update` returns `undefined` when the id does not exist
+- `delete` returns `true` for an existing user and `false` for an unknown id
+- `clear` empties the store so subsequent `findAll` returns an empty array
+
+**What to test in `userValidator`:**
+
+- `createUserSchema` accepts a valid `{ name, email }` payload
+- `createUserSchema` rejects a name shorter than 2 characters
+- `createUserSchema` rejects an invalid email
+- `createUserSchema` rejects a missing `name` field
+- `updateUserSchema` accepts partial updates (`name` only, `email` only)
+- `updateUserSchema` rejects a payload where both fields are absent
+- `userIdSchema` accepts a valid UUID
+- `userIdSchema` rejects a non-UUID string
+
+**Tasks:**
+
+1. Create `tests/unit/userRepository.test.ts` and write the repository tests listed above. Call `userRepository.clear()` in `beforeEach`.
+2. Create `tests/unit/userValidator.test.ts` and write the schema tests listed above. Use `schema.safeParse(input)` and assert on `result.success` and `result.error.errors`.
+3. Run `npm run test:unit` and confirm all new tests pass alongside the existing service tests.
+
+**Hints:**
+
+- You do not need to import Express or start a server for any of these tests.
+- For Zod tests, `result.error.errors[0].path` tells you which field failed — assert on it to confirm the right field is being rejected.
+- `expect(result.success).toBe(false)` is clearer than `expect(result.success).not.toBe(true)`.
+
+---
+
 ## Bonus — What's Next?
 - Replace the in-memory store with PostgreSQL + Prisma or Drizzle
 - Add JWT authentication middleware
